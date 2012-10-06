@@ -1,4 +1,5 @@
 
+*.class
 *.obj
 *.dll
 *.exe
