@@ -14,7 +14,7 @@ API msvcrt.dll, getchar, printf
 section .data use32
 
 prompt db `n = `, 0
-println db `%s\n`, 0
+fmt db `%s\n`, 0
 
 v db '123456789', 0
 ;v db 'abcdefghijklmnopqrstuvwxyz', 0
@@ -23,7 +23,6 @@ section .code use32 class=code
 
 start:
 ..start:
-push ebx
 
 push dword prompt
 call [printf]
@@ -35,58 +34,62 @@ jl .exit
 cmp eax, '9'
 jg .exit
 
-sub eax, '0' ; eax = n
 mov ebx, v
+sub eax, '0' ; eax = n
 add ebx, eax ; ebx = v + n
 mov [ebx], byte 0
 
+std
+
 push dword v
-push dword println
+push dword fmt
 .while_1:
-  call [printf] ; can't use eax - printf 'trashes' eax
+  call [printf]
 
   mov esi, ebx
   dec esi ; k = n - 1
   .while_esi: ; find max k such that v[k] < v[k + 1]
-    dec esi
+    lodsb ; al = [esi--]
     cmp esi, v
     jl .while_1_end ; k < 0 - finish
-    mov cl, [esi]
-    mov dl, [esi + 1]
-    cmp cl, dl
+    mov dl, [esi]
+    cmp dl, al
     jg .while_esi ; v[k] > v[k + 1]
+  mov edi, esi
+  ; dl = [edi] = v[k]
 
-  mov edi, ebx ; l = n
-;  mov cl, [esi] ; redundant - cl = [esi] from prev loop
+  mov esi, ebx
+  dec esi ; l = n - 1
   .while_edi: ; find max l such that v[k] < v[l]
-    dec edi
-    mov dl, [edi]
-    cmp cl, dl
+    lodsb ; al = [esi--]
+    cmp dl, al
     jg .while_edi ; v[k] > v[l]
+  inc esi;
+  ; al = [esi] = v[l]
 
   ; v[k] <-> v[l]
-  mov cl, [esi]
-  mov dl, [edi]
   mov [esi], dl
-  mov [edi], cl
+  mov [edi], al
 
-  mov edi, ebx ; l = n
+  mov esi, ebx ; l = n
   .reverse: ; reverse order from k + 1 to n - 1
-    inc esi
-    dec edi
-    cmp esi, edi
+    inc edi
+    dec esi
+    cmp edi, esi
     jnl .reverse_end
-    mov cl, [esi]
+    mov al, [esi]
     mov dl, [edi]
     mov [esi], dl
-    mov [edi], cl
-    jl .reverse
+    mov [edi], al
+    jmp .reverse
   .reverse_end:
 
   jmp .while_1
 .while_1_end:
 add esp, 8 ; printf parameters
 
+cld
+
 .exit:
-pop ebx
+push dword 0 ; exitCode
 call [ExitProcess]
