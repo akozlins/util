@@ -1,5 +1,5 @@
 
-call "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\vcvarsall.bat"
+call "%VS100COMNTOOLS%\..\..\vc\vcvarsall.bat"
 
 @set FileName=main
 rm %FileName%.obj %FileName%.exe
